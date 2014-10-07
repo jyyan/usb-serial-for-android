@@ -25,6 +25,7 @@ import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
+import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
@@ -91,6 +92,10 @@ import java.util.Map;
  *      for Android project page</a>
  * @see <a href="http://www.ftdichip.com/">FTDI Homepage</a>
  * @see <a href="http://www.intra2net.com/en/developer/libftdi">libftdi</a>
+ *
+ * @author Christian Hass (chass@gmx.net)
+ * @see <a href="https://github.com/ChrisMuc/usb-serial-for-android">Forked
+ *      USB Serial for Android project page</a>
  */
 public class FtdiSerialDriver implements UsbSerialDriver {
 
@@ -118,12 +123,12 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         return Collections.singletonList(mPort);
     }
 
-    private class FtdiSerialPort extends CommonUsbSerialPort {
+    public class FtdiSerialPort extends CommonUsbSerialPort {
 
         public static final int USB_TYPE_STANDARD = 0x00 << 5;
-        public static final int USB_TYPE_CLASS = 0x00 << 5;
-        public static final int USB_TYPE_VENDOR = 0x00 << 5;
-        public static final int USB_TYPE_RESERVED = 0x00 << 5;
+        public static final int USB_TYPE_CLASS = 0x01 << 5;
+        public static final int USB_TYPE_VENDOR = 0x02 << 5;
+        public static final int USB_TYPE_RESERVED = 0x03 << 5;
 
         public static final int USB_RECIP_DEVICE = 0x00;
         public static final int USB_RECIP_INTERFACE = 0x01;
@@ -145,7 +150,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         /**
          * Set the modem control register.
          */
-        private static final int SIO_MODEM_CTRL_REQUEST = 1;
+        private static final int SIO_SET_MODEM_CTRL_REQUEST = 1;
 
         /**
          * Set flow control register.
@@ -161,16 +166,40 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          * Set the data characteristics of the port.
          */
         private static final int SIO_SET_DATA_REQUEST = 4;
+        /**
+         * Poll modem status information
+         */
+        private static final int SIO_POLL_MODEM_STATUS_REQUEST = 0x05;
+        /**
+         * Directly read pin state, circumventing the read buffer. Useful for bitbang mode.
+         */
+        private static final int SIO_READ_PINS_REQUEST = 0x0C;
+
+
 
         private static final int SIO_RESET_SIO = 0;
         private static final int SIO_RESET_PURGE_RX = 1;
         private static final int SIO_RESET_PURGE_TX = 2;
+        private static final int SIO_SET_DTR_MASK = 0x01;
+        private static final int SIO_SET_DTR_HIGH = (1 | (SIO_SET_DTR_MASK << 8));
+        private static final int SIO_SET_DTR_LOW  = (0 | (SIO_SET_DTR_MASK << 8));
+        private static final int SIO_SET_RTS_MASK = 0x02;
+        private static final int SIO_SET_RTS_HIGH = (2 | (SIO_SET_RTS_MASK << 8));
+        private static final int SIO_SET_RTS_LOW  = (0 | (SIO_SET_RTS_MASK << 8));
 
         public static final int FTDI_DEVICE_OUT_REQTYPE =
                 UsbConstants.USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT;
 
         public static final int FTDI_DEVICE_IN_REQTYPE =
                 UsbConstants.USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN;
+
+        public static final int FT_OK = 0x00;
+        public static final int FT_ERROR_INVALID_HANDLE = 0x01;
+        public static final int FT_ERROR_DEVICE_NOT_FOUND = 0x02;
+        public static final int FT_ERROR_DEVICE_NOT_OPENED = 0x03;
+        public static final int FT_ERROR_IO_ERROR = 0x04;
+        public static final int FT_ERROR_INSUFFICIENT_RESOURCES = 0x05;
+        public static final int FT_ERROR_INVALID_PARAMETER = 0x06;
 
         /**
          * Length of the modem status header, transmitted with every read.
@@ -509,19 +538,31 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             };
         }
 
+        public int pollModemStatus() throws IOException {
+            System.out.println("POLLING");
+            byte[] buf = new byte[2];
+            int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_POLL_MODEM_STATUS_REQUEST, 0, 0, buf, 2, USB_READ_TIMEOUT_MILLIS);
+            if (result != FT_OK) {
+                throw new IOException("Polling modem status failed: result=" + result);
+            }
+//            return (buf[1] << 8) | (buf[0] & 0xFF);
+            System.out.println("USB Status: " + ((int)((buf[1] & 0xFF) << 8) | (buf[0] & 0xFF)));
+            return ((buf[1] & 0xFF) << 8) | (buf[0] & 0xFF);
+        }
+
         @Override
         public boolean getCD() throws IOException {
-            return false;
+            return (pollModemStatus() & 0x0080) > 0;
         }
 
         @Override
         public boolean getCTS() throws IOException {
-            return false;
+            return (pollModemStatus() & 0x0010) > 0;
         }
 
         @Override
         public boolean getDSR() throws IOException {
-            return false;
+            return (pollModemStatus() & 0x0020) > 0;
         }
 
         @Override
@@ -531,11 +572,15 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setDTR(boolean value) throws IOException {
+            int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_SET_MODEM_CTRL_REQUEST, value? SIO_SET_DTR_HIGH : SIO_SET_DTR_LOW, 0, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 0) {
+                throw new IOException("Setting DTR failed: result=" + result);
+            }
         }
 
         @Override
         public boolean getRI() throws IOException {
-            return false;
+            return (pollModemStatus() & 0x0040) > 0;
         }
 
         @Override
@@ -545,6 +590,20 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setRTS(boolean value) throws IOException {
+            int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_SET_MODEM_CTRL_REQUEST, value? SIO_SET_RTS_HIGH : SIO_SET_RTS_LOW, 0, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 0) {
+                throw new IOException("Setting RTS failed: result=" + result);
+            }
+        }
+
+        public int readPins() throws IOException {
+            System.out.println("READING Pins");
+            byte[] pins = new byte[1];
+            int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_READ_PINS_REQUEST, 0, 0, pins, 1, USB_READ_TIMEOUT_MILLIS);
+            if (result != FT_OK) {
+                throw new IOException("Reading pins failed: result=" + result);
+            }
+            return (pins[0] & 0xFF);
         }
 
         @Override

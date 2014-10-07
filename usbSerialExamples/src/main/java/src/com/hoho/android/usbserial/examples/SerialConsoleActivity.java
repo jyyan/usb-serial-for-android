@@ -28,9 +28,12 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.hoho.android.usbserial.driver.FtdiSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.util.HexDump;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
@@ -61,9 +64,15 @@ public class SerialConsoleActivity extends Activity {
      */
     private static UsbSerialPort sPort = null;
 
+    private boolean mDTRValue = false;
+    private boolean mRTSValue = false;
+
     private TextView mTitleTextView;
     private TextView mDumpTextView;
     private ScrollView mScrollView;
+    private Button mButtonPollStatus;
+    private Button mButtonDTR;
+    private Button mButtonRTS;
 
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
 
@@ -95,6 +104,45 @@ public class SerialConsoleActivity extends Activity {
         mTitleTextView = (TextView) findViewById(R.id.demoTitle);
         mDumpTextView = (TextView) findViewById(R.id.consoleText);
         mScrollView = (ScrollView) findViewById(R.id.demoScroller);
+        mButtonPollStatus = (Button) findViewById(R.id.buttonPollStatus);
+        mButtonDTR = (Button) findViewById(R.id.buttonDTR);
+        mButtonRTS = (Button) findViewById(R.id.buttonRTS);
+
+        mButtonPollStatus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                try {
+//                    System.out.println("PINS = " + ((FtdiSerialDriver.FtdiSerialPort)sPort).readPins());
+                    System.out.println("RI = " + (sPort.getRI()? "HIGH" : "LOW"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        mButtonDTR.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mDTRValue = !mDTRValue;
+                try {
+                    sPort.setDTR(mDTRValue);
+                    mButtonDTR.setText("DTR: " + (mDTRValue ? "ON" : "OFF"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        mButtonRTS.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mRTSValue = !mRTSValue;
+                try {
+                    sPort.setRTS(mRTSValue);
+                    mButtonRTS.setText("RTS: " + (mRTSValue? "ON" : "OFF"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     @Override
