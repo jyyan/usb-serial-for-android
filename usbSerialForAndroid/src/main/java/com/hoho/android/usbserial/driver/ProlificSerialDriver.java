@@ -545,6 +545,12 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
             return purgeReadBuffers || purgeWriteBuffers;
         }
+
+		@Override
+		public int setBaudRate(int baudRate) throws IOException {
+			// TODO Auto-generated method stub
+			return 0;
+		}
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {

@@ -230,7 +230,9 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             return offset;
         }
 
-        private void setBaudRate(int baudRate) throws IOException {
+        @Override
+        public int setBaudRate(int baudRate) throws IOException {
+
             byte[] data = new byte[] {
                     (byte) ( baudRate & 0xff),
                     (byte) ((baudRate >> 8 ) & 0xff),
@@ -242,6 +244,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             if (ret < 0) {
                 throw new IOException("Error setting baud rate.");
             }
+            return baudRate;
         }
 
         @Override

@@ -389,7 +389,8 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             return offset;
         }
 
-        private int setBaudRate(int baudRate) throws IOException {
+        @Override
+        public int setBaudRate(int baudRate) throws IOException {
             long[] vals = convertBaudrate(baudRate);
             long actualBaudrate = vals[0];
             long index = vals[1];

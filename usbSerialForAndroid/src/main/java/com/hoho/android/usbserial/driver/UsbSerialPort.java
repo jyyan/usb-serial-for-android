@@ -148,6 +148,10 @@ public interface UsbSerialPort {
      */
     public void setParameters(
             int baudRate, int dataBits, int stopBits, int parity) throws IOException;
+    
+    
+    public int setBaudRate(int baudRate) throws IOException ;
+
 
     /**
      * Gets the CD (Carrier Detect) bit from the underlying UART.

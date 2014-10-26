@@ -319,6 +319,12 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             sendAcmControlMessage(SET_CONTROL_LINE_STATE, value, null);
         }
 
+		@Override
+		public int setBaudRate(int baudRate) throws IOException {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
