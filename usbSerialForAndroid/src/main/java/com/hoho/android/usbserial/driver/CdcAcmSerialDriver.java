@@ -90,7 +90,13 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         public CdcAcmSerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
-            mEnableAsyncReads = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1);
+            mEnableAsyncReads =  false; 
+            /*
+             * TODO : try to fix this ,
+             * 		may be a bug , cannot use async read , im not sure why it still do not work at my Nexus7(2012) , Zenfone6 (both SDK version 19+)
+             * 		connect throw OTG line to arduino device. so that i set this value as disable first .  
+             */
+            //mEnableAsyncReads = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1);
         }
 
         @Override
