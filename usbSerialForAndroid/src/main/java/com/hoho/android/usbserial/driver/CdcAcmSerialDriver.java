@@ -321,8 +321,13 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
 		@Override
 		public int setBaudRate(int baudRate) throws IOException {
-			// TODO Auto-generated method stub
-			return 0;
+			setParameters(
+					baudRate, 	//baudRate
+            		8,		//dataBits
+            		1,		//stopBits
+            		0 		//parity
+            		);
+			return baudRate;
 		}
 
     }
