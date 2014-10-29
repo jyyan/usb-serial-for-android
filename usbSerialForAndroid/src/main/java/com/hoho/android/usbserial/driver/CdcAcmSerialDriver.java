@@ -82,6 +82,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         private static final int USB_RECIP_INTERFACE = 0x01;
         private static final int USB_RT_ACM = UsbConstants.USB_TYPE_CLASS | USB_RECIP_INTERFACE;
+        // UsbConstants.USB_TYPE_CLASS = 0x20
 
         private static final int SET_LINE_CODING = 0x20;  // USB CDC 1.1 section 6.2
         private static final int GET_LINE_CODING = 0x21;
@@ -248,7 +249,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) {
+        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
             byte stopBitsByte;
             switch (stopBits) {
                 case STOPBITS_1: stopBitsByte = 0; break;
@@ -266,7 +267,8 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 case PARITY_SPACE: parityBitesByte = 4; break;
                 default: throw new IllegalArgumentException("Bad value for parity: " + parity);
             }
-
+            // byte[] baudRate = le32_to_cpu( baudRate );  
+            // little endian binary (32bit) formate
             byte[] msg = {
                     (byte) ( baudRate & 0xff),
                     (byte) ((baudRate >> 8 ) & 0xff),
@@ -275,6 +277,15 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                     stopBitsByte,
                     parityBitesByte,
                     (byte) dataBits};
+            
+            /* Fix Arduino Frimata protocol connect , need setDTR msg before set parameters control msgs.
+             ref :
+             	http://lxr.free-electrons.com/ident?i=acm_tty_set_termios 
+             	http://lxr.free-electrons.com/source/drivers/usb/class/cdc-acm.c#L989
+             */
+            
+            setDTR(true); 
+            
             sendAcmControlMessage(SET_LINE_CODING, 0, msg);
         }
 
